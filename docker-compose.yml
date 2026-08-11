@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  ai-gateway:
+    build: ./app
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      # Uncomment and fill in to use real providers instead of simulated ones:
+      # - ANTHROPIC_API_KEY=
+      # - OPENAI_API_KEY=
+      # - GOOGLE_API_KEY=
+

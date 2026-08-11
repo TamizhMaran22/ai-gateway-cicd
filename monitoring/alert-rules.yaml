@@ -1,0 +1,44 @@
+# PrometheusRule for the Prometheus Operator. If using plain Prometheus,
+# paste the `groups:` block into your rules file instead.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-gateway-alerts
+  namespace: ai-gateway
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: ai-gateway.rules
+      rules:
+        - alert: AIGatewayHighErrorRate
+          expr: |
+            sum(rate(http_request_duration_seconds_count{route="/api/generate",status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_request_duration_seconds_count{route="/api/generate"}[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AI Gateway error rate above 10%"
+            description: "More than 10% of /api/generate requests have failed over the last 5 minutes."
+
+        - alert: AIGatewayHighLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route="/api/generate"}[5m])) by (le)) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AI Gateway p95 latency above 2s"
+            description: "95th percentile latency for /api/generate has exceeded 2 seconds for 5 minutes."
+
+        - alert: AIGatewayPodDown
+          expr: kube_deployment_status_replicas_available{deployment="ai-gateway", namespace="ai-gateway"} < 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AI Gateway has no available replicas"
+            description: "The ai-gateway deployment has had zero available replicas for 2 minutes."
+

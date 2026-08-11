@@ -1,0 +1,27 @@
+# Alternative to servicemonitor.yaml for a plain `prometheus` deployment
+# (no Prometheus Operator / CRDs). Add this job to your prometheus.yml /
+# the ConfigMap that backs your Prometheus deployment.
+
+scrape_configs:
+  - job_name: 'ai-gateway'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['ai-gateway']
+    relabel_configs:
+      # Only scrape pods that opted in via annotation (set in deployment.yaml)
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: app
+
