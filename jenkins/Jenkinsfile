@@ -1,23 +1,11 @@
-// Declarative Jenkins pipeline for the AI Prompt Gateway.
-//
-// Stages: checkout -> install -> test -> build image -> scan -> push ->
-// deploy to Kubernetes -> smoke test the deployed service.
-//
-// Prereqs configured on the Jenkins controller/agent:
-//   - Credentials: "dockerhub-creds" (username/password, or use an ECR/GHCR equivalent)
-//   - Credentials: "kubeconfig" (secret file) OR the agent already has kubectl
-//     context configured for the target cluster
-//   - Tools: nodejs, docker, kubectl available on the agent (or use inline
-//     `docker` agent images per stage, see notes below)
-
 pipeline {
   agent any
 
   environment {
-    IMAGE_NAME   = "yourdockerhubuser/ai-gateway"
-    IMAGE_TAG    = "${env.BUILD_NUMBER}"
-    REGISTRY_CREDS = "dockerhub-creds"
-    K8S_NAMESPACE  = "ai-gateway"
+    IMAGE_NAME      = "tamizhmarans22/ai-gateway"
+    IMAGE_TAG       = "${env.BUILD_NUMBER}"
+    REGISTRY_CREDS  = "dockerhub-creds"
+    K8S_NAMESPACE   = "ai-gateway"
     KUBECONFIG_CRED = "kubeconfig"
   }
 
@@ -28,7 +16,6 @@ pipeline {
   }
 
   stages {
-
     stage('Checkout') {
       steps {
         checkout scm
@@ -61,8 +48,8 @@ pipeline {
 
     stage('Scan image') {
       steps {
-        // Fails the build on HIGH/CRITICAL CVEs. Swap for your scanner of choice.
-        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG} || true"
+        // Fail build if HIGH/CRITICAL CVEs are found
+        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}"
       }
     }
 
@@ -110,13 +97,14 @@ pipeline {
 
   post {
     success {
-      echo "Deployed ${IMAGE_NAME}:${IMAGE_TAG} to ${K8S_NAMESPACE}"
+      echo "✅ Deployed ${IMAGE_NAME}:${IMAGE_TAG} to ${K8S_NAMESPACE}"
     }
     failure {
-      echo "Pipeline failed - check the stage logs above."
+      echo "❌ Pipeline failed - check the stage logs above."
     }
     always {
       sh 'docker image prune -f || true'
+      sh 'docker logout || true'
     }
   }
 }
